@@ -33,7 +33,7 @@ setup(name         = "layoutparser",
       description  = "A unified toolkit for Deep Learning Based Document Image Analysis",
       long_description=open("README.md", "r", encoding="utf-8").read(),
       long_description_content_type="text/markdown",
-      python_requires='>=3.6',
+      python_requires='>=3.9',
       install_requires=[
         "numpy", 
         "opencv-python",
@@ -44,6 +44,7 @@ setup(name         = "layoutparser",
         "iopath",
         "pdfplumber",
         "pdf2image",
+        "tqdm",
       ],
       extras_require={
         "ocr": [

@@ -87,3 +87,4 @@ sys.modules[__name__] = _LazyModule(
     module_spec=__spec__,
     extra_objects={"__version__": __version__},
 )
+from layoutparser.models.detectron2.detectron2layoutmodel import Detectron2LayoutModel
