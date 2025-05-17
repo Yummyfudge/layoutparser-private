@@ -1,3 +1,5 @@
+
+
 import sys
 from pathlib import Path
 
@@ -8,6 +10,7 @@ try:
     from layoutparser.models.base_layoutmodel import BaseLayoutModel as LayoutModel
 except ImportError:
     from ..base_layoutmodel import BaseLayoutModel as LayoutModel
+
 from ...elements import TextBlock
 import importlib
 
@@ -29,6 +32,9 @@ class Detectron2LayoutModel(LayoutModel):
         extra_config=[],
         enforce_cpu=False,
         model_path=None,
+        filter_fn=None,
+        constructor_fn=None,
+        postprocess_fn=None,
     ):
         super().__init__()
 
@@ -51,24 +57,37 @@ class Detectron2LayoutModel(LayoutModel):
         self.cfg = cfg
         self.predictor = DefaultPredictor(cfg)
         self.label_map = label_map
+        self.filter_fn = filter_fn or self.default_filter_fn
+        self.constructor_fn = constructor_fn or self.default_constructor_fn
+        self.postprocess_fn = postprocess_fn or self.default_postprocess_fn
 
     def detect(self, image):
-        outputs = self.predictor(np.array(image))
-        instances = outputs["instances"].to("cpu")
+        raw_output = self._predict_raw(image)
+        boxes, scores, labels = self.postprocess_fn(raw_output)
+        layout = []
 
+        for box, score, label in zip(boxes, scores, labels):
+            if self.filter_fn(label, score):
+                layout.append(self.constructor_fn(box, score, label))
+
+        return layout
+
+    def _predict_raw(self, image):
+        return self.predictor(np.array(image))
+
+    def default_postprocess_fn(self, outputs):
+        instances = outputs["instances"].to("cpu")
         boxes = instances.pred_boxes.tensor.numpy()
         scores = instances.scores.tolist()
         labels = instances.pred_classes.tolist()
+        return boxes, scores, labels
 
-        layout = []
-        for box, score, label in zip(boxes, scores, labels):
-            if label in self.label_map:
-                layout.append(
-                    TextBlock(
-                        list(box),
-                        type=self.label_map[label],
-                        score=score,
-                    )
-                )
+    def default_filter_fn(self, label, score):
+        return label in self.label_map and score >= 0.5
 
-        return layout
+    def default_constructor_fn(self, box, score, label):
+        return TextBlock(
+            list(box),
+            type=self.label_map[label],
+            score=score,
+        )
